@@ -66,6 +66,9 @@ const CompaniesPage = () => {
         offset: page * rowsPerPage,
         limit: rowsPerPage,
       },
+      pricePaging: {
+        first: rowsPerPage,
+      },
       sorting: sort ? [SORT_OPTIONS[sort].value] : [],
       filter: {
         ...(exchangeSymbols.length && {
