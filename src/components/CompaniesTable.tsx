@@ -1,22 +1,49 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import { usePagination } from '@/hooks/usePagination';
 import {
+  Box,
+  tableCellClasses,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   TablePagination,
+  Paper,
+  styled,
+  Stack,
 } from '@mui/material';
-import { SORT_OPTIONS, EXCHANGE_SYMBOLS } from '../constants/companies';
-import { usePagination } from '@/hooks/usePagination';
+import RadarChart from '@/components/RadarChart';
+import { SORT_OPTIONS, EXCHANGE_SYMBOLS, SORT_DIRECTIONS } from '@/constants/companies';
+import { SnowflakeArea } from '@/@types/companies';
+
+const StyledTableCell = styled(TableCell)(({ theme }) => ({
+  [`&.${tableCellClasses.head}`]: {
+    backgroundColor: theme.palette.grey[900],
+    color: theme.palette.common.white,
+  },
+  [`&.${tableCellClasses.body}`]: {
+    fontSize: 14,
+  },
+}));
+
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+  '&:nth-of-type(odd)': {
+    backgroundColor: theme.palette.action.hover,
+  },
+  // hide last border
+  '&:last-child td, &:last-child th': {
+    border: 0,
+  },
+}));
 
 export interface SearchOptions {
   sort: keyof typeof SORT_OPTIONS;
+  sortDirection: keyof typeof SORT_DIRECTIONS;
   exchangeSymbols: (keyof typeof EXCHANGE_SYMBOLS)[];
-  totalScoreRange: [number, number];
+  scoreRange: Record<SnowflakeArea, [number, number]>;
   page: number;
   rowsPerPage: number;
 }
@@ -28,7 +55,7 @@ interface CompaniesProps {
 
 export default function CompaniesTable({
   data,
-  searchOptions: { sort, exchangeSymbols, totalScoreRange, page, rowsPerPage },
+  searchOptions: { sort, sortDirection, exchangeSymbols, scoreRange, page, rowsPerPage },
 }: CompaniesProps) {
   const router = useRouter();
   const handlePaginationChange = (page: number, rowsPerPage: number) => {
@@ -36,8 +63,11 @@ export default function CompaniesTable({
       '/?' +
         new URLSearchParams({
           sort,
+          sortDirection,
           exchangeSymbols: exchangeSymbols.join(','),
-          totalScoreRange: totalScoreRange.join(','),
+          ...Object.fromEntries(
+            Object.entries(scoreRange).map(([key, [lower, upper]]) => [key, `${lower},${upper}`])
+          ),
           page: page.toString(),
           rowsPerPage: rowsPerPage.toString(),
         }).toString()
@@ -51,19 +81,36 @@ export default function CompaniesTable({
   } = usePagination(page, rowsPerPage, handlePaginationChange);
 
   return (
-    <>
+    <Box>
       <TableContainer component={Paper}>
         <Table>
           <TableHeader />
           <TableBody>
-            {data?.companies?.nodes?.map?.((company: any) => (
-              <TableRow key={company.unique_symbol}>
-                <TableCell>{company.name}</TableCell>
-                <TableCell>{company.unique_symbol}</TableCell>
-                <TableCell>{company.price.edges[0].node.price}</TableCell>
-                <TableCell>{company.score.total}</TableCell>
-              </TableRow>
-            ))}
+            {data?.companies?.nodes?.map?.((company: any) => {
+              const radarData = [
+                company.score.value,
+                company.score.future,
+                company.score.past,
+                company.score.health,
+                company.score.dividend,
+              ];
+              return (
+                <StyledTableRow key={company.unique_symbol}>
+                  <StyledTableCell>{company.name}</StyledTableCell>
+                  <StyledTableCell>{company.unique_symbol}</StyledTableCell>
+                  <StyledTableCell>${company.price.edges[0].node.price}</StyledTableCell>
+                  <StyledTableCell align="center" sx={{ padding: 0, paddingBlock: 0.5 }}>
+                    <Stack alignItems="center" maxHeight="4.75rem">
+                      <RadarChart
+                        data={radarData}
+                        labels={['Value', 'Future', 'Past', 'Health', 'Dividend']}
+                      />
+                    </Stack>
+                  </StyledTableCell>
+                  <StyledTableCell align="center">{company.score.total}</StyledTableCell>
+                </StyledTableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
@@ -76,7 +123,7 @@ export default function CompaniesTable({
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
       />
-    </>
+    </Box>
   );
 }
 
@@ -84,10 +131,11 @@ export function TableHeader() {
   return (
     <TableHead>
       <TableRow>
-        <TableCell>Company Name</TableCell>
-        <TableCell>Unique Symbol</TableCell>
-        <TableCell>Last Share Price</TableCell>
-        <TableCell>Total Score</TableCell>
+        <StyledTableCell>Company Name</StyledTableCell>
+        <StyledTableCell>Unique Symbol</StyledTableCell>
+        <StyledTableCell>Last Share Price</StyledTableCell>
+        <StyledTableCell align="center">Score</StyledTableCell>
+        <StyledTableCell align="center">Total Score</StyledTableCell>
       </TableRow>
     </TableHead>
   );

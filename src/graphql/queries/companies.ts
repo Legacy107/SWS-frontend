@@ -19,6 +19,11 @@ export const GET_COMPANIES = gql`
           }
         }
         score {
+          value
+          future
+          past
+          health
+          dividend
           total
         }
       }

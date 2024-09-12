@@ -8,6 +8,7 @@ import {
   Paper,
   TablePagination,
   Skeleton,
+  Box,
 } from '@mui/material';
 
 export interface CompaniesTableLoaderProps {
@@ -17,25 +18,18 @@ export interface CompaniesTableLoaderProps {
 
 export default function CompaniesTableLoader({ page, rowsPerPage }: CompaniesTableLoaderProps) {
   return (
-    <>
+    <Box>
       <TableContainer component={Paper}>
         <Table>
           <TableHeader />
           <TableBody>
-            {Array.from({ length: rowsPerPage }).map((_, index) => (
-              <TableRow key={index}>
-                <TableCell>
-                  <Skeleton variant="text" />
-                </TableCell>
-                <TableCell>
-                  <Skeleton variant="text" />
-                </TableCell>
-                <TableCell>
-                  <Skeleton variant="text" />
-                </TableCell>
-                <TableCell>
-                  <Skeleton variant="text" />
-                </TableCell>
+            {Array.from({ length: rowsPerPage }).map((_, rowIdx) => (
+              <TableRow key={`companies-loader-row-${rowIdx}`}>
+                {Array.from({ length: 5 }).map((_, columnIdx) => (
+                  <TableCell key={`companies-loader-row-${rowIdx}-column${columnIdx}`}>
+                    <Skeleton variant="text" height="52px" />
+                  </TableCell>
+                ))}
               </TableRow>
             ))}
           </TableBody>
@@ -50,6 +44,6 @@ export default function CompaniesTableLoader({ page, rowsPerPage }: CompaniesTab
         page={page}
         disabled
       />
-    </>
+    </Box>
   );
 }
