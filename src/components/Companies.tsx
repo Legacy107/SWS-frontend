@@ -1,88 +1,45 @@
-'use client';
-import { useRouter } from 'next/navigation';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TablePagination,
-} from '@mui/material';
-import { SORT_OPTIONS, EXCHANGE_SYMBOLS } from '../constants/companies';
-import { usePagination } from '@/hooks/usePagination';
+import client from '@/graphql/apollo-client';
+import { GET_COMPANIES } from '@/graphql/queries/companies';
+import { Typography } from '@mui/material';
+import { SORT_OPTIONS } from '@/constants/companies';
+import CompaniesTable, { SearchOptions } from './CompaniesTable';
 
-export interface SearchOptions {
-  sort: keyof typeof SORT_OPTIONS;
-  exchangeSymbols: (keyof typeof EXCHANGE_SYMBOLS)[];
-  totalScoreRange: [number, number];
-  page: number;
-  rowsPerPage: number;
-}
+export default async function Companies({ searchOptions }: { searchOptions: SearchOptions }) {
+  const { sort, exchangeSymbols, totalScoreRange, page, rowsPerPage } = searchOptions;
+  try {
+    const { data } = await client.query({
+      query: GET_COMPANIES,
+      variables: {
+        paging: {
+          offset: page * rowsPerPage,
+          limit: rowsPerPage,
+        },
+        pricePaging: {
+          first: rowsPerPage,
+        },
+        sorting: sort ? [SORT_OPTIONS[sort as keyof typeof SORT_OPTIONS]?.value] : [],
+        filter: {
+          ...(exchangeSymbols.length && {
+            exchange_symbol: {
+              in: exchangeSymbols,
+            },
+          }),
+          total_score: {
+            between: {
+              lower: totalScoreRange[0],
+              upper: totalScoreRange[1],
+            },
+          },
+        },
+      },
+    });
 
-interface CompaniesProps {
-  data: any;
-  searchOptions: SearchOptions;
-}
-
-export default function Companies({
-  data,
-  searchOptions: { sort, exchangeSymbols, totalScoreRange, page, rowsPerPage },
-}: CompaniesProps) {
-  const router = useRouter();
-  const handlePaginationChange = (page: number, rowsPerPage: number) => {
-    router.push(
-      '/?' +
-        new URLSearchParams({
-          sort,
-          exchangeSymbols: exchangeSymbols.join(','),
-          totalScoreRange: totalScoreRange.join(','),
-          page: page.toString(),
-          rowsPerPage: rowsPerPage.toString(),
-        }).toString()
+    return <CompaniesTable data={data} searchOptions={searchOptions} />;
+  } catch (error) {
+    return (
+      <Typography variant="body1" color="error">
+        Error fetching companies
+      </Typography>
     );
-  };
-  const {
-    page: pageState,
-    rowsPerPage: rowsPerPageState,
-    handleChangePage,
-    handleChangeRowsPerPage,
-  } = usePagination(page, rowsPerPage, handlePaginationChange);
-
-  return (
-    <>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Company Name</TableCell>
-              <TableCell>Unique Symbol</TableCell>
-              <TableCell>Last Share Price</TableCell>
-              <TableCell>Total Score</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data?.companies?.nodes?.map?.((company: any) => (
-              <TableRow key={company.unique_symbol}>
-                <TableCell>{company.name}</TableCell>
-                <TableCell>{company.unique_symbol}</TableCell>
-                <TableCell>{company.price.edges[0].node.price}</TableCell>
-                <TableCell>{company.score.total}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <TablePagination
-        rowsPerPageOptions={[5, 10, 25]}
-        component="div"
-        count={data.companies.totalCount}
-        rowsPerPage={rowsPerPageState}
-        page={pageState}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-      />
-    </>
-  );
+  }
 }

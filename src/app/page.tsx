@@ -1,50 +1,9 @@
 import { Suspense } from 'react';
-import client from '@/graphql/apollo-client';
-import { GET_COMPANIES } from '@/graphql/queries/companies';
-import { Container, Skeleton, Stack, Typography } from '@mui/material';
-import Companies, { SearchOptions } from '@/components/Companies';
+import { Container, Stack, Typography } from '@mui/material';
+import ComapaniesTableLoader from '@/components/CompaniesTableLoader';
 import CompaniesSearchFilter from '@/components/CompaniesSearchFilter';
+import Companies from '@/components/Companies';
 import { EXCHANGE_SYMBOLS, MAX_SCORE, SORT_OPTIONS } from '@/constants/companies';
-
-const CompaniesList = async ({ searchOptions }: { searchOptions: SearchOptions }) => {
-  const { sort, exchangeSymbols, totalScoreRange, page, rowsPerPage } = searchOptions;
-  try {
-    const { data } = await client.query({
-      query: GET_COMPANIES,
-      variables: {
-        paging: {
-          offset: page * rowsPerPage,
-          limit: rowsPerPage,
-        },
-        pricePaging: {
-          first: rowsPerPage,
-        },
-        sorting: sort ? [SORT_OPTIONS[sort as keyof typeof SORT_OPTIONS]?.value] : [],
-        filter: {
-          ...(exchangeSymbols.length && {
-            exchange_symbol: {
-              in: exchangeSymbols,
-            },
-          }),
-          total_score: {
-            between: {
-              lower: totalScoreRange[0],
-              upper: totalScoreRange[1],
-            },
-          },
-        },
-      },
-    });
-
-    return <Companies data={data} searchOptions={searchOptions} />;
-  } catch (error) {
-    return (
-      <Typography variant="body1" color="error">
-        Error fetching companies
-      </Typography>
-    );
-  }
-};
 
 interface SearchParams {
   sort?: keyof typeof SORT_OPTIONS;
@@ -79,8 +38,11 @@ export default async function page({ searchParams }: { searchParams: SearchParam
           page={page}
           rowsPerPage={rowsPerPage}
         />
-        <Suspense key={key} fallback={<Skeleton variant="rectangular" height={600} />}>
-          <CompaniesList
+        <Suspense
+          key={key}
+          fallback={<ComapaniesTableLoader page={page} rowsPerPage={rowsPerPage} />}
+        >
+          <Companies
             searchOptions={{
               sort,
               exchangeSymbols: exchangeSymbolsArray,
